@@ -64,8 +64,11 @@ systemctl daemon-reload
 systemctl enable --now codynick-server-runner codynick-server-web nginx
 systemctl restart codynick-server-runner codynick-server-web
 systemctl reload nginx
-runuser -u codynick-web -- "$RELEASE/venv/bin/python" "$RELEASE/server/admin.py" >/var/backups/codynick-server/initial-login.txt
-chmod 600 /var/backups/codynick-server/initial-login.txt
+ACCOUNT_INFO=$(runuser -u codynick-web -- "$RELEASE/venv/bin/python" "$RELEASE/server/admin.py")
+if [[ $ACCOUNT_INFO == *'Initial password:'* ]]; then
+  printf '%s\n' "$ACCOUNT_INFO" >/var/backups/codynick-server/initial-login.txt
+  chmod 600 /var/backups/codynick-server/initial-login.txt
+fi
 for attempt in $(seq 1 30); do
   if curl -fsS http://127.0.0.1/health | grep -q '0.1.0'; then break; fi
   sleep 1
@@ -73,7 +76,11 @@ done
 curl -fsS http://127.0.0.1/health | grep -q '0.1.0'
 systemctl is-active --quiet codynick-server-runner codynick-server-web
 runuser -u codynick-web -- /usr/bin/python3 "$RELEASE/server/smoke.py"
-cat /var/backups/codynick-server/initial-login.txt
+if [[ -f /var/backups/codynick-server/initial-login.txt ]]; then
+  cat /var/backups/codynick-server/initial-login.txt
+else
+  echo "$ACCOUNT_INFO"
+fi
 echo "CodyNick Server $VERSION: READY"
 echo 'Open the VM web address. With NAT port forwarding: http://127.0.0.1:8080'
 echo 'This is a LAN-only prototype. Do not expose HTTP port 80 to the public internet.'

@@ -4,7 +4,7 @@
     "deploy/codynick-server-runner.service": "821343935ade9dbb3ac5b63dce5665b783f91a7c5deed56f22528ad8e2938e65",
     "deploy/codynick-server-web.service": "e11dc7dce952f747ff5ce1c56d78e2ed14828bc94c91691689c26c233192c7b9",
     "deploy/nginx.conf": "7e31bbeebcea486b5bdf0614014c217cbbd5279eeb9404ec37bb88633b13d521",
-    "install.sh": "31a30544bb9f71f5cf99b9768ee3a7f89535f3eba93e9ce24ec1ee0924db7bb0",
+    "install.sh": "7917d776b883c9c97b40fd1135a871fbe9130aa560605d16f21cd251e66794dc",
     "requirements.txt": "565f15636496b14157b0772ea7c96ce08e35afc333dfa12399a415e8c0152223",
     "runtime/CodyNick.py": "2ef426e9729339e90235267ab0440054e5a34a36e21c714856913a6b5b02db8c",
     "runtime/Dashboard.py": "528b4de9c27dd0d20d7743541f43109957f77b0d6383b08f050e204785e44083",

@@ -2,11 +2,12 @@
 set -Eeuo pipefail
 VERSION=0.1.0
 REF=v0.1.0-classroom-prototype
-MANIFEST_SHA=0ce7b53a947f4f1b2c07398e94f31b4898df523ecfc18dcb260e64d885bf050f
+MANIFEST_SHA=040e14014c27268aef913307eb99f7489f6df125ca4beb68082919f18acd046a
 BASE="https://raw.githubusercontent.com/codynick/server/$REF"
 if [[ $EUID -ne 0 ]]; then echo 'Run this installer with sudo.'; exit 1; fi
 if [[ $(uname -m) != x86_64 ]]; then echo 'This server edition requires x86-64 Ubuntu.'; exit 1; fi
 source /etc/os-release
+VERSION=0.1.0
 if [[ $ID != ubuntu || $VERSION_ID != 26.04 ]]; then echo 'This prototype requires Ubuntu Server 26.04 x86-64.'; exit 1; fi
 command -v curl >/dev/null || { apt-get update; apt-get install -y curl ca-certificates; }
 install -d -m 700 /var/lib/codynick-bootstrap
