@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 VERSION=0.2.0
 REF=v0.2.0-rpi-classroom
-MANIFEST_SHA=f245e6846bffdf7c39190fa28903de187fdd098d3590566481e6f815876f7963
+MANIFEST_SHA=3f9ff92cfbef5bde7db3ef95ae16c43922327f8576e5f68c59c8eedb922009d7
 BASE="https://raw.githubusercontent.com/codynick/server/$REF"
 if [[ $EUID -ne 0 ]]; then echo 'Run this installer with sudo.'; exit 1; fi
 if [[ $(uname -m) != x86_64 ]]; then echo 'This server edition requires x86-64 Ubuntu.'; exit 1; fi
@@ -58,3 +58,7 @@ trap 'kill "$FOLLOWER" 2>/dev/null || true' EXIT
 trap 'exit 130' INT TERM
 while systemctl is-active --quiet codynick-server-install.service; do sleep 1; done
 sleep 1
+if ! sed -n "${FIRST_LINE},\$p" /var/log/codynick-server-install.log | grep -Fq "CodyNick Server $VERSION: READY"; then
+  echo 'Installation did not finish successfully. Keep the log above for diagnosis.'
+  exit 1
+fi

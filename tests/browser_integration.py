@@ -59,6 +59,7 @@ with tempfile.TemporaryDirectory() as directory:
             assert page.locator('#spriteCanvas').evaluate('(canvas)=>{const d=canvas.getContext("2d").getImageData(0,0,canvas.width,canvas.height).data;let n=0;for(let i=0;i<d.length;i+=4){if(d[i]<150&&d[i+1]<150&&d[i+2]<150)n++;}return n>30;}')
             page.screenshot(path='screenshots/blockly.png', full_page=True)
             page.goto('http://127.0.0.1:8124/simulator/')
+            page.wait_for_function('document.getElementById("connection").textContent === "Service online"')
             page.locator('[data-add=seven]').click()
             page.locator('#gadget-seven').wait_for(state='visible')
             assert page.locator('#mainPanel').get_attribute('href') == 'http://127.0.0.1:8124/'
@@ -87,6 +88,9 @@ with tempfile.TemporaryDirectory() as directory:
             browser = None
     finally:
         if browser:
-            browser.close()
+            try:
+                browser.close()
+            except Exception:
+                pass
         server.terminate()
         server.wait(timeout=10)

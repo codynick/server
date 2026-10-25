@@ -44,6 +44,9 @@ def adapt(source, target):
         path.write_text(text.replace('http://start.codynick/', '/'), encoding='utf-8')
     replace(target / 'simulator/app.js', "mainPanelUrl.port = '';", '// Keep the current reverse-proxy port.')
     replace(target / 'simulator/app.js', "mainPanelUrl.pathname = '/simulator/';", "mainPanelUrl.pathname = '/';")
+    with (target / 'simulator/app.js').open('a', encoding='utf-8') as stream:
+        stream.write('\n// Wait for the private workspace first snapshot before enabling the toolbox.\n'
+                     'for (const button of document.querySelectorAll("[data-add]")) button.disabled = true;\n')
     replace(target / 'ide/index.php', 'CodyNick On-Device Information Page', 'CodyNick Classroom')
 
 
