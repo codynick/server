@@ -166,7 +166,16 @@ def request(data):
                 raise ValueError('Page not allowed')
             if data.get('method') not in ('GET', 'POST'):
                 raise ValueError('Method not allowed')
-        result = call(job, payload)
+        try:
+            result = call(job, payload)
+        except (ValueError, subprocess.SubprocessError):
+            if action != 'stop':
+                raise
+            # Stop must still work after an exhausted process limit or dead agent.
+            docker('rm', '-f', job['name'])
+            with LOCK:
+                JOBS.pop(uid, None)
+            return dict(ok=True)
         query = parse_qs(data.get('query', ''))
         changes_files = (action == 'php' and data.get('method') == 'POST' and
             ((data['path'] in ('code/index.php', 'code/media.php') and query.get('action', [''])[0] in
@@ -208,13 +217,15 @@ def reap():
                     except Exception:
                         pass
             if time.monotonic() - job['seen'] > 600:
-                with LOCK, job['lock']:
-                    if JOBS.get(uid) is not job or time.monotonic() - job['seen'] <= 600:
-                        continue
+                with job['lock']:
+                    with LOCK:
+                        if JOBS.get(uid) is not job or time.monotonic() - job['seen'] <= 600:
+                            continue
                     try:
                         snapshot(uid, job)
                         docker('rm', '-f', job['name'])
-                        del JOBS[uid]
+                        with LOCK:
+                            JOBS.pop(uid, None)
                     except Exception:
                         pass
 

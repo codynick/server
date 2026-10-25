@@ -1,6 +1,7 @@
 """Classroom accounts and private projects. Never executes Python on the host."""
 import functools
 import base64
+import html
 from contextlib import contextmanager
 import json
 import os
@@ -247,6 +248,7 @@ def tool_page(current, path):
         kind = result.get('content_type', 'text/html')
         if kind.startswith('text/html'):
             injection = ('<meta name="cn-server-csrf" content="' + session['csrf'] + '">'
+                         '<meta name="cn-server-user" content="' + html.escape(current['name'], quote=True) + '">'
                          '<script src="/static/server-session.js"></script>')
             raw = raw.replace(b'<head>', ('<head>' + injection).encode(), 1)
         response = Response(raw, status=result.get('status', 200), content_type=kind)
@@ -286,7 +288,7 @@ def tools(current, path):
     root = Path(os.environ.get('CN_WEB_ROOT', str(Path(__file__).resolve().parents[1] / 'web')))
     if path == 'simulator/':
         raw = (root / 'simulator/index.html').read_bytes()
-        raw = raw.replace(b'<head>', ('<head><meta name="cn-server-csrf" content="' + session['csrf'] + '"><script src="/static/server-session.js"></script>').encode(), 1)
+        raw = raw.replace(b'<head>', ('<head><meta name="cn-server-csrf" content="' + session['csrf'] + '"><meta name="cn-server-user" content="' + html.escape(current['name'], quote=True) + '"><script src="/static/server-session.js"></script>').encode(), 1)
         return Response(raw, content_type='text/html')
     if path.endswith('/'):
         path += 'index.php'

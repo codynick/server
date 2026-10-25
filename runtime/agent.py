@@ -40,7 +40,7 @@ def stop():
     with LOCK:
         if PROCESS and PROCESS.poll() is None:
             try:
-                os.killpg(PROCESS.pid, signal.SIGTERM)
+                os.killpg(PROCESS.pid, signal.SIGINT)
                 PROCESS.wait(timeout=2)
             except (ProcessLookupError, subprocess.TimeoutExpired):
                 try:
