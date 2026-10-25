@@ -14,6 +14,7 @@ import tarfile
 import threading
 import time
 from pathlib import Path, PurePosixPath
+from urllib.parse import parse_qs
 
 SOCKET = os.environ.get('CN_SOCKET', '/run/codynick-server/runner.sock')
 IMAGE = os.environ.get('CN_IMAGE', 'codynick-classroom:0.2.0')
@@ -93,7 +94,7 @@ def migrate(uid, job):
         docker('exec', '-i', job['name'], 'tar', '-xf', '-', '--no-same-owner', '-C', '/home/client', input=stream.getvalue())
 
 
-def provision(uid):
+def provision(uid, role='student'):
     config = credentials(uid)
     name = 'cn-workspace-' + uid
     job = dict(name=name, seen=time.monotonic(), started=time.monotonic(), lock=threading.RLock())
@@ -101,6 +102,7 @@ def provision(uid):
         docker('rm', '-f', name)
     except subprocess.CalledProcessError:
         pass
+    privacy = [] if role == 'teacher' else ['--tmpfs', '/opt/rpi/ide/teachers:ro,nosuid,nodev,size=1m']
     docker('create', '--name', name, '--label', 'codynick.classroom=1',
            '--network', 'none', '--read-only', '--cap-drop', 'ALL',
            '--security-opt', 'no-new-privileges', '--pids-limit', '64',
@@ -110,7 +112,7 @@ def provision(uid):
            '--tmpfs', '/tmp:rw,nosuid,nodev,noexec,size=16m,mode=1777',
            '--mount', 'type=bind,source=/run/mysqld,target=/run/mysqld,readonly',
            '--env', 'CN_DB_NAME=' + config['name'], '--env', 'CN_DB_USER=' + config['name'],
-           '--env', 'CN_DB_PASSWORD=' + config['password'], IMAGE)
+           '--env', 'CN_DB_PASSWORD=' + config['password'], *privacy, IMAGE)
     docker('start', name)
     for _ in range(50):
         try:
@@ -145,7 +147,7 @@ def request(data):
         if not job and action in ('stop', 'status', 'heartbeat'):
             return dict(ok=True, running=False, output='')
         if not job:
-            job = provision(uid)
+            job = provision(uid, data.get('role', 'student'))
         job['seen'] = time.monotonic()
     with job['lock']:
         payload = {k: v for k, v in data.items() if k != 'uid'}
@@ -165,7 +167,13 @@ def request(data):
             if data.get('method') not in ('GET', 'POST'):
                 raise ValueError('Method not allowed')
         result = call(job, payload)
-        if action in ('run', 'php') and (action == 'run' or data.get('method') == 'POST'):
+        query = parse_qs(data.get('query', ''))
+        changes_files = (action == 'php' and data.get('method') == 'POST' and
+            ((data['path'] in ('code/index.php', 'code/media.php') and query.get('action', [''])[0] in
+              ('run', 'save', 'create', 'rename', 'move', 'delete', 'upload')) or
+             (data['path'] == 'blocks/index.php' and query.get('api', [''])[0] in ('run', 'save')) or
+             (data['path'] == 'blocks/designs.php' and query.get('action', [''])[0] in ('save', 'delete'))))
+        if action == 'run' or changes_files:
             snapshot(uid, job)
         if action == 'sim' and data.get('method') == 'POST':
             body = json.loads(base64.b64decode(data.get('body', '')))

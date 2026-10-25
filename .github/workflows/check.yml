@@ -23,3 +23,14 @@ jobs:
           for i in $(seq 1 20); do [ -S /run/codynick-server/runner.sock ] && break; sleep 1; done
           sudo python3 server/smoke.py
           sudo python3 tests/integration.py
+      - name: Browser integration
+        run: |
+          sudo chown root:$(id -gn) /run/codynick-server/runner.sock
+          pip install playwright
+          python -m playwright install --with-deps chromium
+          python tests/browser_integration.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: original-rpi-interface-screenshots
+          path: screenshots/

@@ -16,6 +16,9 @@ def adapt(source, target):
     for folder in ('ide', 'simulator', 'sprite-stage', 'client', 'examples', 'gadget-tests'):
         shutil.copytree(source / folder, target / folder, dirs_exist_ok=True,
                         ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+    shutil.copytree(source.parent / 'extra/ace', target / 'ide/assets/ace', dirs_exist_ok=True)
+    for old, new in [('ace.js', 'ace.js'), ('mode-python.min.js', 'mode-python.js'), ('theme-monokai.min.js', 'theme-monokai.js')]:
+        replace(target / 'ide/code/index.php', 'https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.6/' + old, '/assets/ace/' + new)
     replace(target / 'ide/blocks/index.php', "$DATA_DIR           = __DIR__ . '/data';", "$DATA_DIR           = '/home/client/blockdata';")
     replace(target / 'ide/blocks/designs.php', "$directory = __DIR__ . '/data/designs';", "$directory = '/home/client/blockdata/designs';")
     for page in ('code/index.php', 'blocks/index.php'):

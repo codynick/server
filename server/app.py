@@ -133,6 +133,7 @@ def runner(current, action, **data):
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as conn:
         conn.settimeout(90)
         conn.connect(os.environ.get('CN_SOCKET', '/run/codynick-server/runner.sock'))
+        data['role'] = current['role'] if 'role' in current.keys() else 'student'
         conn.sendall((json.dumps(dict(uid=current['id'], action=action, **data)) + '\n').encode())
         with conn.makefile() as file:
             return json.loads(file.readline(75 * 1024 * 1024))
@@ -229,6 +230,12 @@ def students(current):
 
 
 def tool_page(current, path):
+    if request.method == 'GET':
+        action = request.args.get('action', '')
+        if (path == 'code/index.php' and action not in ('', 'tree', 'read', 'logs', 'download')
+                or path == 'dashboard/cards.php' and action not in ('', 'state')
+                or path == 'code/media.php' and action not in ('', 'tree', 'file', 'download')):
+            abort(405)
     try:
         result = runner(current, 'php', path=path, method=request.method,
                         query=request.query_string.decode('ascii'), uri=request.full_path,
@@ -276,7 +283,7 @@ def tools(current, path):
         if not result.get('ok'):
             return jsonify(result), 503
         return Response(base64.b64decode(result['body']), status=result.get('status', 200), content_type='application/json')
-    root = Path(__file__).resolve().parents[1] / 'web'
+    root = Path(os.environ.get('CN_WEB_ROOT', str(Path(__file__).resolve().parents[1] / 'web')))
     if path == 'simulator/':
         raw = (root / 'simulator/index.html').read_bytes()
         raw = raw.replace(b'<head>', ('<head><meta name="cn-server-csrf" content="' + session['csrf'] + '"><script src="/static/server-session.js"></script>').encode(), 1)

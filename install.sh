@@ -50,7 +50,7 @@ if [[ -d $RELEASE ]]; then
   RELEASE="$RELEASE-$(date +%s)"
 fi
 install -d "$RELEASE"
-cp -a "$SOURCE/server" "$SOURCE/static" "$SOURCE/templates" "$SOURCE/runtime" "$SOURCE/upstream" "$SOURCE/tools" "$SOURCE/.dockerignore" "$SOURCE/requirements.txt" "$RELEASE/"
+cp -a "$SOURCE/server" "$SOURCE/static" "$SOURCE/templates" "$SOURCE/runtime" "$SOURCE/upstream" "$SOURCE/extra" "$SOURCE/tools" "$SOURCE/.dockerignore" "$SOURCE/requirements.txt" "$RELEASE/"
 python3 "$RELEASE/tools/adapt_rpi.py" "$RELEASE/upstream" "$RELEASE/adapted"
 cp -a "$RELEASE/adapted/ide" "$RELEASE/web"
 cp -a "$RELEASE/adapted/simulator/." "$RELEASE/web/simulator/"
