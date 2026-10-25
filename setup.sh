@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 VERSION=0.2.0
 REF=v0.2.0-rpi-classroom
-MANIFEST_SHA=21a86a7853228748acc6e5faedb2ff076b58c85a11cfbf6e95a0063fed4103bb
+MANIFEST_SHA=414d46f0c92b5cd949571bef1d6c8bf247e95e2a5fc5e4f19453689e51ed65d6
 BASE="https://raw.githubusercontent.com/codynick/server/$REF"
 if [[ $EUID -ne 0 ]]; then echo 'Run this installer with sudo.'; exit 1; fi
 if [[ $(uname -m) != x86_64 ]]; then echo 'This server edition requires x86-64 Ubuntu.'; exit 1; fi

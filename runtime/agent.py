@@ -183,7 +183,7 @@ def initialize():
     Path('/tmp/sim-token').write_text(token)
     Path('/tmp/device_info.json').write_text(json.dumps(dict(devicename='CodyNick Classroom',
         device_code=os.environ['CN_DB_USER'], hotspot_ssid='Not applicable (server)',
-        production_date='2026-10-24', software_version='Server 0.2.0 / RPi UI 0.11.0',
+        production_date='2026-10-24', software_version='0.2.0',
         description='Classroom workspace. AI and physical USB are not installed.')))
     SIM_STATE = sim.State(HOME / 'simulator-scene.json')
     for server in (ThreadingHTTPServer(('127.0.0.1', 8091), sim.handler(token, SIM_STATE)),

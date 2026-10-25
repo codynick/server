@@ -48,6 +48,13 @@ def adapt(source, target):
         stream.write('\n// Wait for the private workspace first snapshot before enabling the toolbox.\n'
                      'for (const button of document.querySelectorAll("[data-add]")) button.disabled = true;\n')
     replace(target / 'ide/index.php', 'CodyNick On-Device Information Page', 'CodyNick Classroom')
+    replace(target / 'ide/index.php', '</style>', '''
+        @media (max-width: 600px) {
+            .info-box { display: block; }
+            .info-box .label { white-space: normal; margin-bottom: 6px; }
+            .info-box .value { text-align: left; overflow-wrap: anywhere; }
+        }
+    </style>''')
 
 
 if __name__ == '__main__':
