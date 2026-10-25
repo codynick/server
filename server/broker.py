@@ -12,7 +12,6 @@ from pathlib import Path
 
 SOCKET = os.environ.get('CN_SOCKET', '/run/codynick-server/runner.sock')
 IMAGE = os.environ.get('CN_IMAGE', 'codynick-classroom:0.1.0')
-MAX_JOBS = int(os.environ.get('CN_MAX_JOBS', '2'))
 GRACE = 120
 JOBS = {}
 LOCK = threading.RLock()
@@ -87,8 +86,6 @@ def request(data):
             raise ValueError('Program too large')
         if job and job['running']:
             cleanup(job)
-        if sum(j['running'] for j in JOBS.values()) >= MAX_JOBS:
-            raise ValueError('All execution slots are busy. Please try again shortly.')
         name = 'cn-' + uid + '-' + uuid.uuid4().hex[:12]
         job = dict(name=name, running=True, output='', seen=time.monotonic(), started=time.monotonic())
         try:

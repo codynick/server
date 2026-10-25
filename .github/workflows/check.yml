@@ -11,11 +11,15 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python -m unittest discover -s tests -v
       - run: bash -n setup.sh install.sh
-      - run: docker build -t codynick-classroom:0.1.0 runtime
+      - run: docker build -t codynick-classroom:0.2.0 -f runtime/Dockerfile .
       - name: Real runner check
         run: |
           sudo groupadd -f codynick-web
           sudo mkdir -p /run/codynick-server
-          sudo python3 server/broker.py &
+          sudo apt-get update -qq
+          sudo apt-get install -y mariadb-server mariadb-client
+          sudo systemctl start mariadb
+          sudo python3 server/workspace_broker.py &
           for i in $(seq 1 20); do [ -S /run/codynick-server/runner.sock ] && break; sleep 1; done
           sudo python3 server/smoke.py
+          sudo python3 tests/integration.py

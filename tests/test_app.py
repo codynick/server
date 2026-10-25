@@ -59,6 +59,19 @@ class ClassroomTests(unittest.TestCase):
         self.assertEqual(self.post(self.first, '/api/students', dict(name='hacker', password='long-password')).status_code, 403)
 
     @patch('app.runner', return_value={'ok': True})
+    def test_short_password_creation_reset_and_login(self, mock):
+        self.assertEqual(self.post(self.teacher, '/api/students', dict(name='shortpass', password='a')).status_code, 200)
+        self.assertEqual(self.post(self.teacher, '/api/students', dict(name='student1', password='b', reset=True)).status_code, 200)
+        for name, password in [('shortpass', 'a'), ('student1', 'b')]:
+            client = module.app.test_client()
+            client.get('/')
+            with client.session_transaction() as session:
+                token = session['csrf']
+            self.assertEqual(client.post('/login', data=dict(name=name, password=password, csrf=token)).status_code, 302)
+        self.assertEqual(self.post(self.teacher, '/api/students', dict(name='empty', password='')).status_code, 400)
+        self.assertEqual(self.post(self.teacher, '/api/students', dict(name='toolong', password='a' * 129)).status_code, 400)
+
+    @patch('app.runner', return_value={'ok': True})
     def test_teacher_reset_invalidates_session(self, mock):
         response = self.post(self.teacher, '/api/students', dict(name='student1', password='new-password-123', reset=True))
         self.assertEqual(response.status_code, 200)
@@ -79,11 +92,25 @@ class ClassroomTests(unittest.TestCase):
         self.assertEqual(mock.call_args.args[0]['name'], 'student1')
         self.assertEqual(mock.call_args.kwargs, dict(code='print(1)'))
 
-    def test_templates(self):
+    @patch('app.runner')
+    def test_templates(self, mock):
+        import base64
+        mock.return_value = dict(ok=True, body=base64.b64encode(b'<html><head></head><body>Block Coding</body></html>').decode())
         response = self.first.get('/')
         self.assertIn(b'Block Coding', response.data)
+        self.assertIn(b'server-session.js', response.data)
         self.assertNotIn(b'id="student-form"', response.data)
-        self.assertIn(b'id="student-form"', self.teacher.get('/').data)
+        self.assertEqual(self.first.get('/account/students').status_code, 403)
+        self.assertIn(b'id="student-form"', self.teacher.get('/account/students').data)
+
+    @patch('app.runner')
+    def test_tool_identity_and_role(self, mock):
+        import base64
+        mock.return_value = dict(ok=True, body=base64.b64encode(b'<head></head>').decode())
+        self.first.get('/code/')
+        self.assertEqual(mock.call_args.args[0]['name'], 'student1')
+        self.assertEqual(mock.call_args.kwargs['role'], 'student')
+        self.assertEqual(self.first.get('/teachers/').status_code, 403)
 
 
 if __name__ == '__main__':

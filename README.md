@@ -30,7 +30,7 @@ external scheduled backups must be added before public VPS deployment.
 ## Test sequence
 
 1. Sign in as teacher. In Students create `student1` and `student2`, with unique
-   passwords of at least 10 characters. No shared default student passwords exist.
+   non-empty passwords. No shared default student passwords exist.
 2. Open separate browser profiles or browsers and sign in as each student.
 3. Open Examples / Temperature and Dashboard, then Run. Change the temperature
    slider in Gadgets and inspect Dashboard. Each student's values must be independent.
@@ -57,13 +57,16 @@ The simulation API is a small server-specific facade, NOT a full copy of CodyNic
 Physical `CN()` fails explicitly; use `Simulator()`. Only supplied demo syntax is
 supported in this baseline. Scripts have Python's standard library, without AI.
 
-Two programs may run simultaneously on the small VM. Each has 128 MB RAM, 0.5 CPU,
+There is no application-wide concurrent-program cap. One program runs per account;
+actual capacity depends on available server resources. Each has 128 MB RAM, 0.5 CPU,
 32 processes, no network, read-only system files, no host mounts, a 32 MB ephemeral
 workspace and 8 MB temporary directory. Runtime files disappear when it stops.
 Save source through the web UI. Each account may save 100 projects of up to 64 KB.
 Output is capped at 128 KB per account. Programs stop after 30 minutes maximum or
 120 seconds without an authenticated status poll. Multiple tabs share one runtime
 per account; closing one tab does not stop a program if another remains open.
+Any old `CN_MAX_JOBS` setting is ignored. Short passwords are accepted for creation
+and reset (non-empty, at most 128 characters). Strong passwords remain recommended.
 
 Containers isolate accidental classroom misuse but are not a hardened public
 arbitrary-code service. Do not allow public registration or untrusted users.

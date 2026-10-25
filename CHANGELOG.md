@@ -1,5 +1,11 @@
 # Changes
 
+## Unreleased
+
+Remove the ten-character student password minimum, including password resets.
+Remove the shared two-program execution cap; old CN_MAX_JOBS configuration is ignored.
+Keep per-program CPU, memory, process and runtime safeguards.
+
 ## 0.1.0 - 2026-10-24
 
 First LAN-only classroom prototype. Teacher-created student accounts and resets,

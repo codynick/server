@@ -40,11 +40,17 @@ class BrokerTests(unittest.TestCase):
         self.assertNotIn('--volume', args)
         self.assertNotIn('--privileged', args)
 
-    def test_busy_slots(self):
+    @patch('classroom_broker.threading.Thread')
+    @patch('classroom_broker.docker', return_value='')
+    def test_more_than_two_concurrent_jobs(self, docker, thread):
         broker.JOBS['2'] = dict(running=True)
         broker.JOBS['3'] = dict(running=True)
-        with self.assertRaisesRegex(ValueError, 'busy'):
-            broker.request(dict(uid=1, action='run', code='pass'))
+        with patch.dict('os.environ', CN_MAX_JOBS='2'):
+            result = broker.request(dict(uid=1, action='run', code='pass'))
+        self.assertTrue(result['ok'])
+        self.assertTrue(broker.JOBS['1']['running'])
+        self.assertTrue(broker.JOBS['2']['running'])
+        self.assertTrue(broker.JOBS['3']['running'])
 
 
 if sys.platform != 'win32':

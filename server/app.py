@@ -1,5 +1,6 @@
 """Classroom accounts and private projects. Never executes Python on the host."""
 import functools
+import base64
 from contextlib import contextmanager
 import json
 import os
@@ -10,15 +11,15 @@ import sqlite3
 import time
 from pathlib import Path
 
-from flask import Flask, abort, jsonify, redirect, render_template, request, session
+from flask import Flask, abort, jsonify, redirect, render_template, request, session, Response, send_file
 from werkzeug.security import check_password_hash, generate_password_hash
 
-VERSION = '0.1.0'
+VERSION = '0.2.0'
 DATA = Path(os.environ.get('CN_DATA', '/var/lib/codynick-server'))
 DATA.mkdir(parents=True, exist_ok=True)
 app = Flask(__name__, static_folder='../static', template_folder='../templates')
 app.secret_key = os.environ.get('CN_SECRET', '') or secrets.token_hex(32)
-app.config.update(MAX_CONTENT_LENGTH=262144, SESSION_COOKIE_HTTPONLY=True,
+app.config.update(MAX_CONTENT_LENGTH=51 * 1024 * 1024, SESSION_COOKIE_HTTPONLY=True,
                   SESSION_COOKIE_SAMESITE='Strict', SESSION_COOKIE_SECURE=os.environ.get('CN_HTTPS') == '1',
                   PERMANENT_SESSION_LIFETIME=28800)
 FAILURES = {}
@@ -83,7 +84,7 @@ def headers(response):
     response.headers['X-Frame-Options'] = 'DENY'
     response.headers['Referrer-Policy'] = 'same-origin'
     response.headers['Cache-Control'] = 'no-store'
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'"
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'"
     return response
 
 
@@ -104,7 +105,9 @@ def health():
 def index():
     session.setdefault('csrf', secrets.token_hex(24))
     current = user()
-    return render_template('index.html' if current else 'login.html', current=current, version=VERSION)
+    if not current:
+        return render_template('login.html', current=current, version=VERSION)
+    return tool_page(current, 'index.php')
 
 
 @app.post('/login')
@@ -128,11 +131,11 @@ def login():
 
 def runner(current, action, **data):
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as conn:
-        conn.settimeout(35)
+        conn.settimeout(90)
         conn.connect(os.environ.get('CN_SOCKET', '/run/codynick-server/runner.sock'))
         conn.sendall((json.dumps(dict(uid=current['id'], action=action, **data)) + '\n').encode())
         with conn.makefile() as file:
-            return json.loads(file.readline(2000000))
+            return json.loads(file.readline(75 * 1024 * 1024))
 
 
 @app.post('/api/logout')
@@ -206,8 +209,8 @@ def students(current):
             return jsonify(ok=True, students=[dict(row) for row in rows])
         data = request.get_json()
         name, password = data.get('name', '').lower(), data.get('password', '')
-        if not re.fullmatch('[a-z][a-z0-9_-]{2,31}', name) or not 10 <= len(password) <= 128:
-            abort(400, 'Username: 3-32 lowercase characters. Password: 10-128 characters.')
+        if not re.fullmatch('[a-z][a-z0-9_-]{2,31}', name) or not 1 <= len(password) <= 128:
+            abort(400, 'Username: 3-32 lowercase characters. Password: required, maximum 128 characters.')
         hashed = generate_password_hash(password)
         if data.get('reset'):
             row = conn.execute("SELECT id FROM users WHERE name=? AND role='student'", (name,)).fetchone()
@@ -223,6 +226,71 @@ def students(current):
             except sqlite3.IntegrityError:
                 abort(400, 'Username already exists.')
     return jsonify(ok=True)
+
+
+def tool_page(current, path):
+    try:
+        result = runner(current, 'php', path=path, method=request.method,
+                        query=request.query_string.decode('ascii'), uri=request.full_path,
+                        body=base64.b64encode(request.get_data()).decode(),
+                        content_type=request.content_type or '', role=current['role'])
+        if not result.get('ok'):
+            return jsonify(result), 503
+        raw = base64.b64decode(result['body'])
+        kind = result.get('content_type', 'text/html')
+        if kind.startswith('text/html'):
+            injection = ('<meta name="cn-server-csrf" content="' + session['csrf'] + '">'
+                         '<script src="/static/server-session.js"></script>')
+            raw = raw.replace(b'<head>', ('<head>' + injection).encode(), 1)
+        response = Response(raw, status=result.get('status', 200), content_type=kind)
+        if result.get('disposition'):
+            response.headers['Content-Disposition'] = result['disposition']
+        return response
+    except (OSError, ValueError) as exc:
+        app.logger.exception('Workspace unavailable')
+        return jsonify(ok=False, error='Workspace could not open. Contact the teacher.'), 503
+
+
+@app.get('/account/students')
+@protected(teacher=True)
+def student_page(current):
+    return render_template('students.html', current=current)
+
+
+@app.post('/api/heartbeat')
+@protected()
+def heartbeat(current):
+    return jsonify(runner(current, 'heartbeat'))
+
+
+@app.route('/<path:path>', methods=['GET', 'POST'])
+@protected()
+def tools(current, path):
+    if path.startswith('teachers') and current['role'] != 'teacher':
+        abort(403)
+    if path in ('code', 'blocks', 'dashboard', 'docs', 'teachers', 'gadget-tests', 'simulator'):
+        return redirect('/' + path + '/', code=307)
+    if path in ('simulator/state', 'simulator/command'):
+        result = runner(current, 'sim', method=request.method,
+                        body=base64.b64encode(request.get_data()).decode())
+        if not result.get('ok'):
+            return jsonify(result), 503
+        return Response(base64.b64decode(result['body']), status=result.get('status', 200), content_type='application/json')
+    root = Path(__file__).resolve().parents[1] / 'web'
+    if path == 'simulator/':
+        raw = (root / 'simulator/index.html').read_bytes()
+        raw = raw.replace(b'<head>', ('<head><meta name="cn-server-csrf" content="' + session['csrf'] + '"><script src="/static/server-session.js"></script>').encode(), 1)
+        return Response(raw, content_type='text/html')
+    if path.endswith('/'):
+        path += 'index.php'
+    target = (root / path).resolve()
+    if not target.is_relative_to(root.resolve()) or '/data/' in '/' + path:
+        abort(403)
+    if target.suffix == '.php':
+        return tool_page(current, path)
+    if not target.is_file() or target.suffix.lower() not in ('.js', '.css', '.png', '.jpg', '.jpeg', '.svg', '.ico', '.gif', '.mp3', '.cur', '.woff2', '.codynick'):
+        abort(404)
+    return send_file(target)
 
 
 initialize()

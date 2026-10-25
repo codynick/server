@@ -1,11 +1,11 @@
 [Unit]
 Description=CodyNick restricted classroom execution broker
-After=docker.service
-Requires=docker.service
+After=docker.service mariadb.service
+Requires=docker.service mariadb.service
 [Service]
 EnvironmentFile=/etc/codynick-server.env
-Environment=CN_IMAGE=codynick-classroom:0.1.0
-ExecStart=/usr/bin/python3 /opt/codynick-server/current/server/broker.py
+Environment=CN_IMAGE=codynick-classroom:0.2.0
+ExecStart=/usr/bin/python3 /opt/codynick-server/current/server/workspace_broker.py
 RuntimeDirectory=codynick-server
 RuntimeDirectoryMode=0755
 Restart=on-failure
@@ -14,6 +14,7 @@ UMask=0077
 ProtectHome=true
 ProtectSystem=strict
 ReadWritePaths=/run/codynick-server
+ReadWritePaths=/var/lib/codynick-workspaces
 PrivateTmp=true
 [Install]
 WantedBy=multi-user.target
