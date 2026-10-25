@@ -65,8 +65,10 @@ with tempfile.TemporaryDirectory() as directory:
             assert page.locator('#mainPanel').get_attribute('href') == 'http://127.0.0.1:8124/'
             page.wait_for_function('() => Array.from(document.images).every(i=>i.complete && i.naturalWidth>0)')
             page.screenshot(path='screenshots/simulator.png', full_page=True)
-            page.goto('http://127.0.0.1:8124/dashboard/')
-            assert 'Unable to load dashboard' not in page.content()
+            with page.expect_response(lambda response: '/dashboard/cards.php?action=state' in response.url) as dashboard:
+                page.goto('http://127.0.0.1:8124/dashboard/')
+            assert dashboard.value.json()['ok']
+            assert page.locator('.load-error').count() == 0
             page.screenshot(path='screenshots/dashboard.png', full_page=True)
             page.goto('http://127.0.0.1:8124/')
             page.set_viewport_size(dict(width=390, height=844))
